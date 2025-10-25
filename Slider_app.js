@@ -3,7 +3,6 @@
 // --- utilidades URL/room ---
 const qs = new URLSearchParams(location.search);
 
-// room actual o una aleatoria si falta
 function randomRoom() {
   const adjs = ['sol','luna','zen','norte','sur','rojo','verde','magno','alto','brisa'];
   const subs = ['rio','cima','valle','delta','nube','pico','puente','eco','rayo','nodo'];
@@ -20,25 +19,25 @@ if (!qs.get('room')) {
   history.replaceState({}, '', u.toString());
 }
 
-// ws base (del query ?ws=. o por defecto el mismo host /ws)
+// ws base (de ?ws= o por defecto mismo host /ws)
 const wsBase = (qs.get('ws') || '').trim() ||
   `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
 
-// URL final de conexión (incluye room)
+// URL final de conexión
 const wsURL = `${wsBase}?room=${encodeURIComponent(room)}`;
 
-// pinta cabecera y ejemplos dinámicos
+// pinta cabecera y ejemplos
 document.getElementById('roomLabel').textContent = `Sala: ${room}`;
 const exTD  = document.getElementById('exTD');
 const exAlt = document.getElementById('exAlt');
-if (exTD)  exTD.textContent  = wsURL;
+if (exTD)  exTD.textContent  = wsURL;                          // wss://host/ws?room=xxx
 if (exAlt) exAlt.textContent = `?ws=${encodeURIComponent(wsBase)}&room=${room}`;
 
 // botón “Copiar enlace”
 document.getElementById('copyLink')?.addEventListener('click', async () => {
   const url = new URL(location.href);
   url.searchParams.set('room', room);
-  if (qs.has('ws')) url.searchParams.set('ws', wsBase);   // conserva ?ws si lo pusiste
+  if (qs.has('ws')) url.searchParams.set('ws', wsBase);
   try {
     await navigator.clipboard.writeText(url.toString());
     const btn = document.getElementById('copyLink');
@@ -50,7 +49,7 @@ document.getElementById('copyLink')?.addEventListener('click', async () => {
   }
 });
 
-// slider UI + actualización de “%”
+// UI slider
 const slider = document.getElementById('slider');
 const valueBox = document.getElementById('value');
 function setValueUI(v) {
@@ -82,4 +81,20 @@ function connect() {
 connect();
 
 function sendState(v) {
-  const msg = { t
+  const msg = { type: 'state', room, value: v };
+  if (ws && ws.readyState === 1) {
+    ws.send(JSON.stringify(msg));
+  }
+}
+
+// throttling
+let lastSend = 0;
+slider.addEventListener('input', () => {
+  const now = performance.now();
+  const v = parseFloat(slider.value);
+  setValueUI(v);
+  if (now - lastSend > 30) {
+    lastSend = now;
+    sendState(v);
+  }
+});
