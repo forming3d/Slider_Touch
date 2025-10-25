@@ -1,106 +1,86 @@
-// server.js
-import express from 'express';
-import http from 'http';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { WebSocketServer } from 'ws';
+// server.js — Express + WebSocket (rooms) + static + /new
+// Ejecuta con: node server.js  (Render usará PORT)
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+"use strict";
+const path = require("path");
+const express = require("express");
+const http = require("http");
+const { WebSocketServer } = require("ws");
 
+// ---------- App HTTP ----------
 const app = express();
-app.use(express.static(__dirname));
 
-// redirige "/" a Slider.html
-app.get('/', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'Slider.html'));
-});
+// Sirve todos los archivos del repo (Slider.html, montest.html, JS/CSS…)
+app.use(express.static(__dirname, { extensions: ["html"] }));
 
-// (opcional) /new crea una sala aleatoria y redirige
+// Pequeño generador de slug sala-xxxx
 function slug() {
-  const s = () => Math.random().toString(36).slice(2, 5);
-  return `sala-${s()}-${s()}`;
+  const a = ["sol","luna","zen","norte","sur","rojo","verde","magno","alto","brisa"];
+  const b = ["rio","cima","valle","delta","nube","pico","puente","eco","rayo","nodo"];
+  const s = (arr) => arr[Math.floor(Math.random()*arr.length)];
+  const suf = Math.random().toString(36).slice(2,5);
+  return `${s(a)}-${s(b)}-${suf}`;
 }
-app.get('/new', (_req, res) => {
+
+// /new -> redirige a Slider.html con sala aleatoria
+app.get("/new", (_req, res) => {
   res.redirect(`/Slider.html?room=${slug()}`);
 });
 
-// health-check
-app.get('/health', (_req, res) => res.type('text').send('OK'));
+// Raíz -> abre montest.html (cámbialo si prefieres Slider.html)
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(__dirname, "montest.html"));
+});
 
+// Health check opcional
+app.get("/healthz", (_req, res) => res.status(200).send("ok"));
+
+// ---------- HTTP + WS ----------
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws' });
 
-const rooms = new Map();
-function joinRoom(ws, room) {
-  if (ws.room && rooms.has(ws.room)) {
-    const set = rooms.get(ws.room);
-    set.delete(ws);
-    if (set.size === 0) rooms.delete(ws.room);
-  }
-  ws.room = room;
-  if (!rooms.has(room)) rooms.set(room, new Set());
-  rooms.get(room).add(ws);
-}
-function broadcastTo(room, data, except = null) {
-  const set = rooms.get(room);
-  if (!set) return;
-  for (const c of set) if (c !== except && c.readyState === 1) c.send(data);
-}
+// WS con rooms en la ruta /ws
+const wss = new WebSocketServer({ server });
 
-function heartbeat() { this.isAlive = true; }
-setInterval(() => {
-  for (const ws of wss.clients) {
-    if (!ws.isAlive) { ws.terminate(); continue; }
-    ws.isAlive = false; ws.ping();
-  }
-}, 30000);
-
-wss.on('connection', (ws, req) => {
-  ws.isAlive = true;
-  ws.on('pong', heartbeat);
-
+function getRoomFromReq(reqUrl) {
   try {
-    const u = new URL(req.url, 'http://x');
-    joinRoom(ws, u.searchParams.get('room') || 'default');
+    const u = new URL(reqUrl, "http://x");
+    if (u.pathname !== "/ws") return null;
+    return (u.searchParams.get("room") || "default").trim() || "default";
   } catch {
-    joinRoom(ws, 'default');
+    return "default";
   }
+}
 
-  ws.on('message', (buf) => {
-    let msg = null;
-    try { msg = JSON.parse(buf.toString()); } catch {}
+wss.on("connection", (ws, req) => {
+  const room = getRoomFromReq(req.url) || "default";
+  ws.room = room;
+  ws.isAlive = true;
 
-    if (msg && msg.type === 'join' && typeof msg.room === 'string') {
-      joinRoom(ws, msg.room);
-      return;
-    }
+  ws.on("pong", () => (ws.isAlive = true));
 
-    const room = (msg && typeof msg.room === 'string') ? msg.room : (ws.room || 'default');
-
-    if (msg && msg.type === 'slider') {
-      let v = Number(msg.value);
-      if (!Number.isFinite(v)) v = 0;
-      v = Math.max(0, Math.min(1, v));
-      return broadcastTo(room, JSON.stringify({ type: 'state', value: v, room }));
-    }
-
-    if (msg && typeof msg === 'object') {
-      if (!('room' in msg)) msg.room = room;
-      return broadcastTo(room, JSON.stringify(msg));
-    }
-
-    broadcastTo(room, buf);
-  });
-
-  ws.on('close', () => {
-    const set = rooms.get(ws.room);
-    if (set) {
-      set.delete(ws);
-      if (set.size === 0) rooms.delete(ws.room);
+  ws.on("message", (buf) => {
+    // Reenvía solo a los clientes de la misma sala
+    for (const client of wss.clients) {
+      if (client !== ws && client.readyState === 1 && client.room === room) {
+        client.send(buf.toString());
+      }
     }
   });
 });
 
+// Ping/pong para mantener vivos los sockets
+const iv = setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) return ws.terminate();
+    ws.isAlive = false;
+    try { ws.ping(); } catch {}
+  }
+}, 30000);
+
+wss.on("close", () => clearInterval(iv));
+
+// ---------- Start ----------
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('HTTP+WS listo en :' + PORT));
+server.listen(PORT, () => {
+  console.log(`HTTP+WS en http://localhost:${PORT}  (WS -> /ws, NEW -> /new)`);
+});
