@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Slider remoto (rooms)</title>
-  <link rel="stylesheet" href="./Slider_styles.css?v=6" />
+  <link rel="stylesheet" href="./Slider_styles.css?v=7" />
 </head>
 <body>
   <main class="center">
@@ -16,15 +16,11 @@
           <button id="copyLink" class="badge" style="cursor:pointer">Copiar enlace</button>
         </h1>
 
-        <details class="info" id="infoBox" open>
+        <details class="info" open>
           <summary>Información</summary>
           <div class="info__body">
-            <p>
-              Abre con <code>?room=miSala</code> para separar sesiones.
-              Ej.: <code>/Slider.html?room=escenaA</code>
-            </p>
-            <p>En TouchDesigner usa: <code id="exTD">wss://HOST/ws?room=escenaA</code></p>
-            <p>Si tu WS está en otro host, añade <code id="exAlt">?ws=wss://otro/ws&amp;room=miSala</code></p>
+            <p>En TouchDesigner usa: <code id="exTD">wss://HOST/ws?room=...</code></p>
+            <p>Si tu WS está en otro host, abre con: <code id="exAlt">?ws=wss://otro-host/ws&room=miSala</code></p>
           </div>
         </details>
       </header>
@@ -41,24 +37,9 @@
     </section>
   </main>
 
-  <!-- Indicador visual de estado WS -->
-  <script defer>
-    (function patchStatus() {
-      const dot = document.getElementById('dot');
-      const txt = document.getElementById('statusText');
-      const _WS = window.WebSocket;
-      window.WebSocket = function(url, proto) {
-        const ws = new _WS(url, proto);
-        ws.addEventListener('open', () => { dot?.classList.add('ok');  txt && (txt.textContent = 'Conectado'); });
-        ws.addEventListener('close', () => { dot?.classList.remove('ok'); txt && (txt.textContent = 'Reconectando…'); });
-        return ws;
-      };
-      window.WebSocket.prototype = _WS.prototype;
-    })();
-  </script>
-
-  <script src="./slider_animation.js?v=6" defer></script>
-  <script src="./Slider_app.js?v=6" defer></script>
-  <noscript>Activa JavaScript para usar este control.</noscript>
+  <!-- (tu script de animación de fondo si quieres) -->
+  <script src="./slider_animation.js?v=7" defer></script>
+  <!-- App -->
+  <script src="./Slider_app.js?v=7" defer></script>
 </body>
 </html>
