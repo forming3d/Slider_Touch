@@ -17,7 +17,7 @@
         </h1>
 
         <!-- Pestaña plegable para ocultar info -->
-        <details class="info" id="infoBox">
+        <details class="info" id="infoBox" open>
           <summary>Información</summary>
           <div class="info__body">
             <p>
@@ -26,11 +26,11 @@
             </p>
             <p>
               En TouchDesigner usa:
-              <code>wss://TU-DOMINIO/ws?room=escenaA</code>
+              <code id="exTD">wss://TU-DOMINIO/ws?room=escenaA</code>
             </p>
             <p>
               Si tu WS está en otro host, añade
-              <code>?ws=wss://otro-host/ws&amp;room=miSala</code>.
+              <code id="exAlt">?ws=wss://otro-host/ws&amp;room=miSala</code>.
             </p>
           </div>
         </details>
@@ -57,12 +57,12 @@
       window.WebSocket = function(url, proto) {
         const ws = new _WS(url, proto);
         ws.addEventListener('open', () => {
-          if (dot) dot.classList.add('ok');
-          if (txt) txt.textContent = 'Conectado';
+          dot && dot.classList.add('ok');
+          txt && (txt.textContent = 'Conectado');
         });
         ws.addEventListener('close', () => {
-          if (dot) dot.classList.remove('ok');
-          if (txt) txt.textContent = 'Reconectando…';
+          dot && dot.classList.remove('ok');
+          txt && (txt.textContent = 'Reconectando…');
         });
         return ws;
       };
@@ -70,9 +70,7 @@
     })();
   </script>
 
-  <!-- Lógica del slider con rooms y copia de enlace -->
   <script src="./Slider_app.js"></script>
-
   <noscript>Necesitas habilitar JavaScript para usar este control.</noscript>
 </body>
 </html>
