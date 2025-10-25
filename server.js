@@ -1,55 +1,72 @@
-// server.js — Express + WebSocket (rooms) + static + /new
-"use strict";
+// server.js — Express + WebSocket, sin montest, con salas (?room=...)
 const path = require("path");
-const express = require("express");
 const http = require("http");
+const express = require("express");
 const { WebSocketServer } = require("ws");
 
 const app = express();
+
+// Servir archivos estáticos desde ESTE MISMO directorio:
+// Asegúrate de tener aquí: Slider.html, Slider_app.js, Slider_styles.css, slider_animation.js
 app.use(express.static(__dirname, { extensions: ["html"] }));
 
+// ---------- util: nombre de sala legible-aleatorio ----------
 function slug() {
-  const a = ["sol","luna","zen","norte","sur","rojo","verde","magno","alto","brisa"];
-  const b = ["rio","cima","valle","delta","nube","pico","puente","eco","rayo","nodo"];
-  const s = arr => arr[Math.floor(Math.random()*arr.length)];
-  const suf = Math.random().toString(36).slice(2,5);
+  const a = ["sol", "luna", "zen", "norte", "sur", "rojo", "verde", "magno", "alto", "brisa"];
+  const b = ["rio", "cima", "valle", "delta", "nube", "pico", "puente", "eco", "rayo", "nodo"];
+  const s = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const suf = Math.random().toString(36).slice(2, 5);
   return `${s(a)}-${s(b)}-${suf}`;
 }
 
-app.get("/new", (_req, res) => res.redirect(`/Slider.html?room=${slug()}`));
-app.get("/",    (_req, res) => res.sendFile(path.join(__dirname, "montest.html")));
+// ---------- rutas HTTP ----------
+app.get("/new", (_req, res) => {
+  // redirige a una sala aleatoria
+  res.redirect(`/Slider.html?room=${slug()}`);
+});
+
+// raíz: envía al slider (sin sala) o si prefieres, a /new
+app.get("/", (_req, res) => res.redirect("/Slider.html")); // o: res.redirect("/new")
+
+// healthcheck para Render
 app.get("/healthz", (_req, res) => res.status(200).send("ok"));
 
+// ---------- servidor HTTP + WebSocket ----------
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-function getRoomFromReq(urlStr) {
+// extrae ?room= de la URL del handshake WS
+function getRoomFromUrl(urlStr) {
   try {
     const u = new URL(urlStr, "http://x");
-    if (u.pathname !== "/ws") return null;
-    return (u.searchParams.get("room") || "default").trim() || "default";
-  } catch { return "default"; }
+    if (u.pathname !== "/ws") return null; // sólo aceptamos /ws
+    const room = (u.searchParams.get("room") || "default").trim();
+    return room || "default";
+  } catch {
+    return "default";
+  }
 }
 
+// broadcast por sala
 wss.on("connection", (ws, req) => {
-  const room = getRoomFromReq(req.url) || "default";
-  ws.room = room;
+  ws.room = getRoomFromUrl(req.url) || "default";
   ws.isAlive = true;
 
   ws.on("pong", () => (ws.isAlive = true));
 
   ws.on("message", (buf) => {
-    for (const client of wss.clients) {
-      if (client !== ws && client.readyState === 1 && client.room === room) {
-        client.send(buf.toString());
+    for (const c of wss.clients) {
+      if (c !== ws && c.readyState === 1 && c.room === ws.room) {
+        c.send(buf.toString());
       }
     }
   });
 });
 
+// heartbeat para limpiar clientes caídos
 const iv = setInterval(() => {
   for (const ws of wss.clients) {
-    if (ws.isAlive === false) return ws.terminate();
+    if (ws.isAlive === false) { try { ws.terminate(); } catch {} ; continue; }
     ws.isAlive = false;
     try { ws.ping(); } catch {}
   }
@@ -57,7 +74,9 @@ const iv = setInterval(() => {
 
 wss.on("close", () => clearInterval(iv));
 
+// ---------- start ----------
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`HTTP+WS listo: http://localhost:${PORT}  (WS: /ws, NEW: /new)`);
+  console.log(`HTTP en http://localhost:${PORT}`);
+  console.log(`WS path: /ws  |  Ir a /new para sala aleatoria`);
 });
