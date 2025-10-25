@@ -1,4 +1,4 @@
-// server.js (ESM). Requiere "type":"module" en package.json.
+// server.js
 import express from 'express';
 import http from 'http';
 import path from 'path';
@@ -10,38 +10,39 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Sirve archivos estáticos (Slider.html, Slider_app.js, Slider_styles.css en la misma carpeta)
+// sirve archivos estáticos (Slider.html, Slider_app.js, Slider_styles.css)
 app.use(express.static(__dirname));
+
+// redirige "/" a Slider.html  -> evita "Cannot GET /"
+app.get('/', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'Slider.html'));
+});
+
 // health-check
 app.get('/health', (_req, res) => res.type('text').send('OK'));
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, path: '/ws' });
 
-// ---- Rooms: Map<string, Set<WebSocket>>
-const rooms = new Map();
+// ---- rooms
+const rooms = new Map(); // Map<string, Set<WebSocket>>
 function joinRoom(ws, room) {
   if (ws.room && rooms.has(ws.room)) {
-    const set = rooms.get(ws.room);
-    set.delete(ws);
-    if (set.size === 0) rooms.delete(ws.room);
+    const s = rooms.get(ws.room);
+    s.delete(ws);
+    if (s.size === 0) rooms.delete(ws.room);
   }
   ws.room = room;
   if (!rooms.has(room)) rooms.set(room, new Set());
   rooms.get(room).add(ws);
 }
-
 function broadcastTo(room, data, except = null) {
   const set = rooms.get(room);
   if (!set) return;
-  for (const client of set) {
-    if (client !== except && client.readyState === 1) {
-      client.send(data);
-    }
-  }
+  for (const c of set) if (c !== except && c.readyState === 1) c.send(data);
 }
 
-// heartbeat
+// keep-alive
 function heartbeat() { this.isAlive = true; }
 setInterval(() => {
   for (const ws of wss.clients) {
@@ -54,20 +55,18 @@ wss.on('connection', (ws, req) => {
   ws.isAlive = true;
   ws.on('pong', heartbeat);
 
-  // Determina room desde la query (?room=xxx), default "default"
+  // sala desde query (?room=xxx)
   try {
     const u = new URL(req.url, 'http://x');
-    const room = u.searchParams.get('room') || 'default';
-    joinRoom(ws, room);
+    joinRoom(ws, u.searchParams.get('room') || 'default');
   } catch {
     joinRoom(ws, 'default');
   }
 
   ws.on('message', (buf) => {
     let msg = null;
-    try { msg = JSON.parse(buf.toString()); } catch { }
+    try { msg = JSON.parse(buf.toString()); } catch {}
 
-    // Cambiar de sala si llega un join explícito
     if (msg && msg.type === 'join' && typeof msg.room === 'string') {
       joinRoom(ws, msg.room);
       return;
@@ -75,22 +74,19 @@ wss.on('connection', (ws, req) => {
 
     const room = (msg && typeof msg.room === 'string') ? msg.room : (ws.room || 'default');
 
-    // Normalizamos "slider" -> "state" (0..1) y lo difundimos en la sala
+    // normaliza slider -> state
     if (msg && msg.type === 'slider') {
       let v = Number(msg.value);
       if (!Number.isFinite(v)) v = 0;
       v = Math.max(0, Math.min(1, v));
-      const out = JSON.stringify({ type: 'state', value: v, room });
-      return broadcastTo(room, out);
+      return broadcastTo(room, JSON.stringify({ type: 'state', value: v, room }));
     }
 
-    // Reenvía otros mensajes dentro de la sala, adjuntando room si falta
     if (msg && typeof msg === 'object') {
       if (!('room' in msg)) msg.room = room;
       return broadcastTo(room, JSON.stringify(msg));
     }
 
-    // Si no es JSON, igualmente reenvía dentro de la sala
     broadcastTo(room, buf);
   });
 
