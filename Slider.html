@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Remote Slider (rooms)</title>
-  <link rel="stylesheet" href="./Slider_styles.css" />
+  <title>Slider remoto (rooms)</title>
+  <link rel="stylesheet" href="./Slider_styles.css?v=5" />
 </head>
 <body>
   <main class="center">
@@ -16,7 +16,6 @@
           <button id="copyLink" class="badge" style="cursor:pointer">Copiar enlace</button>
         </h1>
 
-        <!-- Pestaña plegable para ocultar info -->
         <details class="info" id="infoBox" open>
           <summary>Información</summary>
           <div class="info__body">
@@ -49,7 +48,7 @@
   </main>
 
   <!-- Parche visual del estado WS (verde/rojo) -->
-  <script>
+  <script defer>
     (function patchStatus() {
       const dot = document.getElementById('dot');
       const txt = document.getElementById('statusText');
@@ -70,7 +69,11 @@
     })();
   </script>
 
-  <script src="./Slider_app.js"></script>
+  <!-- Animación de fondo -->
+  <script src="./slider_animation.js?v=5" defer></script>
+
+  <!-- App del slider -->
+  <script src="./Slider_app.js?v=5" defer></script>
   <noscript>Necesitas habilitar JavaScript para usar este control.</noscript>
 </body>
 </html>
