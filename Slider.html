@@ -1,15 +1,11 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Remote Slider (rooms)</title>
-  <link rel="stylesheet" href="./Slider_styles.css">
-  <!-- Animación de fondo -->
-  <script src="./slider_animation.js" defer></script>
+  <link rel="stylesheet" href="./Slider_styles.css" />
 </head>
-
 <body>
   <main class="center">
     <section class="card">
@@ -17,6 +13,7 @@
         <h1 class="title">
           Slider remoto
           <span id="roomLabel" class="badge">Sala: default</span>
+          <button id="copyLink" class="badge" style="cursor:pointer">Copiar enlace</button>
         </h1>
 
         <!-- Pestaña plegable para ocultar info -->
@@ -40,8 +37,7 @@
       </header>
 
       <div class="sliderRow">
-        <label for="slider" class="sr-only">Control deslizante</label>
-        <input id="slider" type="range" min="0" max="1" step="0.001" value="0">
+        <input id="slider" type="range" min="0" max="1" step="0.001" value="0" />
         <div id="value" class="valueBox">0%</div>
       </div>
 
@@ -58,7 +54,7 @@
       const dot = document.getElementById('dot');
       const txt = document.getElementById('statusText');
       const _WS = window.WebSocket;
-      window.WebSocket = function (url, proto) {
+      window.WebSocket = function(url, proto) {
         const ws = new _WS(url, proto);
         ws.addEventListener('open', () => {
           if (dot) dot.classList.add('ok');
@@ -74,10 +70,9 @@
     })();
   </script>
 
-  <!-- Lógica del slider con rooms -->
+  <!-- Lógica del slider con rooms y copia de enlace -->
   <script src="./Slider_app.js"></script>
 
   <noscript>Necesitas habilitar JavaScript para usar este control.</noscript>
 </body>
-
 </html>
