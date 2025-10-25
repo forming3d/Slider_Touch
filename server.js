@@ -9,13 +9,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-
-// sirve archivos estáticos (Slider.html, Slider_app.js, Slider_styles.css)
 app.use(express.static(__dirname));
 
-// redirige "/" a Slider.html  -> evita "Cannot GET /"
+// redirige "/" a Slider.html
 app.get('/', (_req, res) => {
   res.sendFile(path.join(__dirname, 'Slider.html'));
+});
+
+// (opcional) /new crea una sala aleatoria y redirige
+function slug() {
+  const s = () => Math.random().toString(36).slice(2, 5);
+  return `sala-${s()}-${s()}`;
+}
+app.get('/new', (_req, res) => {
+  res.redirect(`/Slider.html?room=${slug()}`);
 });
 
 // health-check
@@ -24,13 +31,12 @@ app.get('/health', (_req, res) => res.type('text').send('OK'));
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-// ---- rooms
-const rooms = new Map(); // Map<string, Set<WebSocket>>
+const rooms = new Map();
 function joinRoom(ws, room) {
   if (ws.room && rooms.has(ws.room)) {
-    const s = rooms.get(ws.room);
-    s.delete(ws);
-    if (s.size === 0) rooms.delete(ws.room);
+    const set = rooms.get(ws.room);
+    set.delete(ws);
+    if (set.size === 0) rooms.delete(ws.room);
   }
   ws.room = room;
   if (!rooms.has(room)) rooms.set(room, new Set());
@@ -42,7 +48,6 @@ function broadcastTo(room, data, except = null) {
   for (const c of set) if (c !== except && c.readyState === 1) c.send(data);
 }
 
-// keep-alive
 function heartbeat() { this.isAlive = true; }
 setInterval(() => {
   for (const ws of wss.clients) {
@@ -55,7 +60,6 @@ wss.on('connection', (ws, req) => {
   ws.isAlive = true;
   ws.on('pong', heartbeat);
 
-  // sala desde query (?room=xxx)
   try {
     const u = new URL(req.url, 'http://x');
     joinRoom(ws, u.searchParams.get('room') || 'default');
@@ -74,7 +78,6 @@ wss.on('connection', (ws, req) => {
 
     const room = (msg && typeof msg.room === 'string') ? msg.room : (ws.room || 'default');
 
-    // normaliza slider -> state
     if (msg && msg.type === 'slider') {
       let v = Number(msg.value);
       if (!Number.isFinite(v)) v = 0;
