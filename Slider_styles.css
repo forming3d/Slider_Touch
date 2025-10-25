@@ -1,0 +1,268 @@
+/* === Layout global: centro en pantalla, fondo negro === */
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #000;
+  /* fondo negro */
+  color: #e5e7eb;
+  /* gris claro */
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  position: relative; /* Para posicionamiento del canvas de animación */
+  overflow: hidden; /* Evitar scroll por la animación */
+}
+
+.center {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  /* centra todo */
+  padding: 16px;
+}
+
+/* === Tarjeta sin bordes redondeados “pill” (más cuadrado) === */
+.card {
+  width: min(720px, 92vw);
+  background: #0a0a0a;
+  border: 1px solid #1f2937;
+  /* gris oscuro */
+  border-radius: 4px;
+  /* esquinas discretas, casi cuadradas */
+  padding: 18px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .45);
+  position: relative;
+  z-index: 10; /* Asegurar que esté por encima de la animación */
+  -webkit-backdrop-filter: blur(3px); /* Para Safari */
+  backdrop-filter: blur(3px); /* Efecto de desenfoque */
+}
+
+/* Ajustes responsivos para la tarjeta */
+@media (max-width: 480px) {
+  .card {
+    padding: 14px;
+    width: 95vw; /* Más ancho en móviles pequeños */
+  }
+}
+
+@media (min-width: 481px) and (max-width: 767px) {
+  .card {
+    padding: 16px;
+  }
+}
+
+.card__header {
+  margin-bottom: 8px;
+}
+
+.title {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.badge {
+  font-size: 13px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  /* cuadrado suave */
+  background: #111;
+  border: 1px solid #222;
+  color: #cbd5e1;
+}
+
+/* === Pestaña plegable de información === */
+.info {
+  border: 1px solid #222;
+  border-radius: 4px;
+  background: #0b0b0b;
+  overflow: hidden;
+}
+
+.info>summary {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  padding: 10px 12px;
+  list-style: none;
+  outline: none;
+}
+
+.info[open]>summary {
+  border-bottom: 1px solid #222;
+}
+
+.info__body {
+  padding: 10px 12px;
+  font-size: 13px;
+  opacity: .85;
+}
+
+code {
+  background: #0b1220;
+  border: 1px solid #1f2937;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* === Fila del slider + valor === */
+.sliderRow {
+  display: grid;
+  grid-template-columns: 1fr 80px;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+/* Ajustes responsivos para el slider */
+@media (max-width: 480px) {
+  .sliderRow {
+    grid-template-columns: 1fr 60px; /* Más espacio para el slider en móviles pequeños */
+    gap: 8px;
+  }
+  
+  .title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+  
+  .badge {
+    font-size: 11px;
+    padding: 1px 6px;
+  }
+}
+
+/* Caja del valor (más cuadrada) */
+.valueBox {
+  min-width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  background: #0b0b0b;
+  border: 1px solid #222;
+  border-radius: 4px;
+  /* cuadrado */
+  padding: 8px 10px;
+  color: #fff;
+}
+
+/* Clase para elementos visualmente ocultos pero accesibles para lectores de pantalla */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* === Slider estilo cuadrado === */
+input[type="range"] {
+  width: 100%;
+  height: 10px;
+  background: #1a1a1a;
+  /* base; el gradiente activo lo pone JS */
+  border: 1px solid #222;
+  border-radius: 4px;
+  /* SIN pill: más cuadrado */
+  outline: none;
+  appearance: none;
+}
+
+/* Track WebKit */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  background: transparent;
+  /* el JS aplica el gradient en inline style */
+  border-radius: 4px;
+}
+
+/* Thumb WebKit (CUADRADO) */
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #22c55e;
+  /* verde */
+  border: 1px solid #0f0f0f;
+  border-radius: 2px;
+  /* cuadrado (ajusta a 0 si lo quieres totalmente recto) */
+  margin-top: -6px;
+  /* centra el thumb respecto al track */
+  box-shadow: none;
+  cursor: pointer;
+}
+
+/* Track Firefox */
+input[type="range"]::-moz-range-track {
+  height: 8px;
+  background: transparent;
+  border: none;
+}
+
+/* Thumb Firefox (CUADRADO) */
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #22c55e;
+  border: 1px solid #0f0f0f;
+  border-radius: 2px;
+  /* cuadrado */
+  cursor: pointer;
+}
+
+/* Track MS (legacy) */
+input[type="range"]::-ms-track {
+  height: 8px;
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+}
+
+input[type="range"]::-ms-thumb {
+  width: 18px;
+  height: 18px;
+  background: #22c55e;
+  border: 1px solid #0f0f0f;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+/* === Estado de conexión === */
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  opacity: .85;
+  margin-top: 12px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border: 1px solid #111;
+  border-radius: 2px;
+  /* cuadradito */
+}
+
+.dot.ok {
+  background: #22c55e;
+}
