@@ -23,14 +23,8 @@
               Abre con <code>?room=miSala</code> para separar sesiones.
               Ej.: <code>/Slider.html?room=escenaA</code>
             </p>
-            <p>
-              En TouchDesigner usa:
-              <code id="exTD">wss://TU-DOMINIO/ws?room=escenaA</code>
-            </p>
-            <p>
-              Si tu WS está en otro host, añade
-              <code id="exAlt">?ws=wss://otro-host/ws&amp;room=miSala</code>.
-            </p>
+            <p>En TouchDesigner usa: <code id="exTD">wss://HOST/ws?room=escenaA</code></p>
+            <p>Si tu WS está en otro host, añade <code id="exAlt">?ws=wss://otro/ws&amp;room=miSala</code></p>
           </div>
         </details>
       </header>
@@ -47,7 +41,7 @@
     </section>
   </main>
 
-  <!-- Parche visual del estado WS (verde/rojo) -->
+  <!-- Indicador visual de estado WS -->
   <script defer>
     (function patchStatus() {
       const dot = document.getElementById('dot');
@@ -55,25 +49,16 @@
       const _WS = window.WebSocket;
       window.WebSocket = function(url, proto) {
         const ws = new _WS(url, proto);
-        ws.addEventListener('open', () => {
-          dot && dot.classList.add('ok');
-          txt && (txt.textContent = 'Conectado');
-        });
-        ws.addEventListener('close', () => {
-          dot && dot.classList.remove('ok');
-          txt && (txt.textContent = 'Reconectando…');
-        });
+        ws.addEventListener('open', () => { dot?.classList.add('ok');  txt && (txt.textContent = 'Conectado'); });
+        ws.addEventListener('close', () => { dot?.classList.remove('ok'); txt && (txt.textContent = 'Reconectando…'); });
         return ws;
       };
       window.WebSocket.prototype = _WS.prototype;
     })();
   </script>
 
-  <!-- Animación de fondo -->
   <script src="./slider_animation.js?v=6" defer></script>
-
-  <!-- App del slider -->
   <script src="./Slider_app.js?v=6" defer></script>
-  <noscript>Necesitas habilitar JavaScript para usar este control.</noscript>
+  <noscript>Activa JavaScript para usar este control.</noscript>
 </body>
 </html>
