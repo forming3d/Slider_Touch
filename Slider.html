@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Remote Slider (rooms)</title>
+  <link rel="stylesheet" href="./Slider_styles.css">
+  <!-- Animación de fondo -->
+  <script src="./slider_animation.js" defer></script>
+</head>
+
+<body>
+  <main class="center">
+    <section class="card">
+      <header class="card__header">
+        <h1 class="title">
+          Slider remoto
+          <span id="roomLabel" class="badge">Sala: default</span>
+        </h1>
+
+        <!-- Pestaña plegable para ocultar info -->
+        <details class="info" id="infoBox">
+          <summary>Información</summary>
+          <div class="info__body">
+            <p>
+              Abre con <code>?room=miSala</code> para separar sesiones.
+              Ej.: <code>/Slider.html?room=escenaA</code>
+            </p>
+            <p>
+              En TouchDesigner usa:
+              <code>wss://TU-DOMINIO/ws?room=escenaA</code>
+            </p>
+            <p>
+              Si tu WS está en otro host, añade
+              <code>?ws=wss://otro-host/ws&amp;room=miSala</code>.
+            </p>
+          </div>
+        </details>
+      </header>
+
+      <div class="sliderRow">
+        <label for="slider" class="sr-only">Control deslizante</label>
+        <input id="slider" type="range" min="0" max="1" step="0.001" value="0">
+        <div id="value" class="valueBox">0%</div>
+      </div>
+
+      <div class="status">
+        <span id="dot" class="dot"></span>
+        <span id="statusText">Conectando…</span>
+      </div>
+    </section>
+  </main>
+
+  <!-- Parche visual del estado WS (verde/rojo) -->
+  <script>
+    (function patchStatus() {
+      const dot = document.getElementById('dot');
+      const txt = document.getElementById('statusText');
+      const _WS = window.WebSocket;
+      window.WebSocket = function (url, proto) {
+        const ws = new _WS(url, proto);
+        ws.addEventListener('open', () => {
+          if (dot) dot.classList.add('ok');
+          if (txt) txt.textContent = 'Conectado';
+        });
+        ws.addEventListener('close', () => {
+          if (dot) dot.classList.remove('ok');
+          if (txt) txt.textContent = 'Reconectando…';
+        });
+        return ws;
+      };
+      window.WebSocket.prototype = _WS.prototype;
+    })();
+  </script>
+
+  <!-- Lógica del slider con rooms -->
+  <script src="./Slider_app.js"></script>
+
+  <noscript>Necesitas habilitar JavaScript para usar este control.</noscript>
+</body>
+
+</html>
