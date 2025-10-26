@@ -1,6 +1,4 @@
-// server.js — WebSocket + HTTP (Express) para slider Touch/Web sin eco
-// Ejecuta con: node server.js  (Render usa process.env.PORT)
-
+// server.js — HTTP + WS con rooms, anti-eco y 'sender'
 'use strict';
 
 const path = require('path');
@@ -11,50 +9,38 @@ const url = require('url');
 
 const PORT = process.env.PORT || 10000;
 
-// --- HTTP (estático opcional: Slider.html, css/js, etc.) ---
 const app = express();
-app.use(express.static(path.join(__dirname))); // sirve archivos del repo
-app.get('/', (_req, res) => {
-  // si entras a la raíz, redirige al slider por comodidad
-  res.redirect('/Slider.html');
-});
+app.use(express.static(path.join(__dirname)));
+app.get('/', (_req, res) => res.redirect('/Slider.html'));
 
 const server = http.createServer(app);
 
-// --- WS en /ws ---------------------------------------------------------------
 const wss = new WebSocketServer({ server, path: '/ws' });
 
-// Conjunto de clientes por sala: Map<room, Set<ws>>
-const rooms = new Map();
-// Último valor por sala: Map<room, number>
-const lastValue = new Map();
+const rooms = new Map();     // room -> Set<ws>
+const lastValue = new Map(); // room -> number
 
-function getRoomFromRequest(req) {
-  // req.url viene como "/ws?room=xxxx"
+function getRoom(req) {
   try {
-    const parsed = url.parse(req.url, true);
-    const q = parsed.query || {};
-    const room = `${q.room || 'default'}`.trim();
-    // sanea nombres raros
-    return room || 'default';
+    const u = url.parse(req.url, true);
+    const r = (u.query?.room || 'default').toString().trim();
+    return r || 'default';
   } catch {
     return 'default';
   }
 }
 
-function addToRoom(room, ws) {
+function add(room, ws) {
   if (!rooms.has(room)) rooms.set(room, new Set());
   rooms.get(room).add(ws);
 }
-
-function removeFromRoom(room, ws) {
+function del(room, ws) {
   const set = rooms.get(room);
-  if (set) {
-    set.delete(ws);
-    if (set.size === 0) {
-      rooms.delete(room);
-      lastValue.delete(room);
-    }
+  if (!set) return;
+  set.delete(ws);
+  if (set.size === 0) {
+    rooms.delete(room);
+    lastValue.delete(room);
   }
 }
 
@@ -63,71 +49,56 @@ function clamp01(x) {
   if (!Number.isFinite(v)) return 0;
   return Math.max(0, Math.min(1, v));
 }
-
 function safeSend(ws, obj) {
-  try {
-    if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj));
-  } catch (_) { /* no-op */ }
+  try { if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj)); } catch {}
 }
-
-function broadcastToRoom(room, payload, exceptWs = null) {
+function broadcast(room, obj, exceptWs) {
   const set = rooms.get(room);
   if (!set) return;
-  for (const client of set) {
-    if (client === exceptWs) continue; // *** evita ECO ***
-    safeSend(client, payload);
+  for (const c of set) {
+    if (c === exceptWs) continue;          // **no eco al emisor**
+    safeSend(c, obj);
   }
 }
 
 wss.on('connection', (ws, req) => {
-  const room = getRoomFromRequest(req);
-  addToRoom(room, ws);
+  const room = getRoom(req);
+  ws.__room = room;
+  add(room, ws);
 
-  console.log(`[WS] + client in room="${room}" (total ${rooms.get(room).size})`);
-
-  // Saludo y estado inicial de la sala
+  // Saludo + estado actual (si existe)
   safeSend(ws, { type: 'hello', room });
   if (lastValue.has(room)) {
-    safeSend(ws, { type: 'state', value: lastValue.get(room), room });
+    safeSend(ws, { type: 'state', room, value: lastValue.get(room) });
   }
 
   ws.on('message', (buf) => {
     let msg;
-    try {
-      msg = JSON.parse(buf.toString());
-    } catch (e) {
-      console.warn('[WS] JSON parse error:', e);
-      return;
-    }
+    try { msg = JSON.parse(buf.toString()); } catch { return; }
 
-    // Normalizamos: aceptamos {type:"slider", value} o {type:"state", value}
     const t = (msg.type || '').toString().toLowerCase();
     if (t === 'slider' || t === 'state') {
-      const value = clamp01(msg.value);
-      lastValue.set(room, value);
+      const v = clamp01(msg.value);
+      const prev = lastValue.get(room);
+      if (prev != null && Math.abs(prev - v) < 1e-4) return; // de-dupe
+      lastValue.set(room, v);
 
-      // Enviamos como "state" a todos MENOS al emisor
-      const payload = { type: 'state', value, room };
-      broadcastToRoom(room, payload, ws);
+      // Propagamos 'sender' si viene
+      const out = { type: 'state', room, value: v };
+      if (msg.sender) out.sender = msg.sender;
+
+      broadcast(room, out, ws);             // **no** al emisor
       return;
     }
 
     if (t === 'ping') {
       safeSend(ws, { type: 'pong', room });
-      return;
     }
-
-    // Ignora otros tipos silenciosamente
   });
 
-  ws.on('close', () => {
-    removeFromRoom(room, ws);
-    console.log(`[WS] - client left room="${room}" (remaining ${rooms.get(room)?.size || 0})`);
-  });
+  ws.on('close', () => del(room, ws));
 });
 
-// --- Arranque ----------------------------------------------------------------
 server.listen(PORT, () => {
-  console.log(`HTTP on :${PORT}`);
-  console.log(`WS   on :${PORT}/ws  (use wss://YOUR-RENDER.onrender.com/ws?room=miSala)`);
+  console.log(`HTTP :${PORT}  WS /ws`);
 });
